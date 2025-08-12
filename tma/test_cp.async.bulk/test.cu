@@ -10,7 +10,7 @@ void fence_proxy_async_shared(){
 
 __global__ void test_tma_copy_to_shared(uint32_t* a, uint32_t* b) {
 #pragma nv_diag_suppress static_var_with_dynamic_init
-    __shared__ barrier bar; // mbarrier
+    __shared__ barrier bar;
     if(threadIdx.x == 0){
         init(&bar, blockDim.x);
         fence_proxy_async_shared();
@@ -18,16 +18,12 @@ __global__ void test_tma_copy_to_shared(uint32_t* a, uint32_t* b) {
     __syncthreads();
     // 开同样大小的shared memory
     alignas(16) __shared__ uint32_t shared[8];
-    auto tma_load_size = 8 * sizeof(uint32_t);
     // 使用TMA拷贝到shared memory
     if(threadIdx.x == 0){
         cuda::memcpy_async(shared, a, cuda::aligned_size_t<16>(sizeof(shared)), bar);
     }
     barrier::arrival_token token = bar.arrive();
     bar.wait(std::move(token));
-    fence_proxy_async_shared();
-    // cp_async_mbarrier_arrive(bar);
-    // mbarrier_arrive(bar);
     __syncthreads();
     // 把shared中内容拷贝到b数组
     if(threadIdx.x == 0){
